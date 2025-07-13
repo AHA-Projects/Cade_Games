@@ -16,18 +16,22 @@
 #define LEFT_SWITCH_PIN 36
 #define RIGHT_SWITCH_PIN 39
 
-// --- DISPLAY & CANVAS SETUP ---
+// --- DISPLAY SETUP ---
 #define SCREEN_WIDTH 320
 #define SCREEN_HEIGHT 170
 
 Adafruit_ST7789 tft = Adafruit_ST7789(TFT_CS, TFT_DC, TFT_RST);
-GFXcanvas16 canvas(SCREEN_WIDTH, SCREEN_HEIGHT);
 
+// --- COLORS (Defined directly) ---
 #define BLACK   0x0000
 #define WHITE   0xFFFF
-#define BLUE    0x001F
-#define GREEN   0x07E0
 #define RED     0xF800
+#define BIRD_COLOR  0xFFE0 // Yellow
+#define PIPE_COLOR  0x07E0 // Green
+#define SKY_COLOR   0x549F // A nice light blue
+#define TEXT_COLOR  0xFFFF // White
+#define GROUND_COLOR 0x62A6 // Brownish-green
+
 
 // --- GAME STATES ---
 enum GameState {
@@ -51,13 +55,6 @@ GameState gameState = START_SCREEN;
 #define PIPE_SPACING 180    // Horizontal distance between pipes
 #define NUM_PIPES 2         // Use 2 pipes and recycle them
 
-// --- COLORS ---
-#define BIRD_COLOR  0xFFE0 // Yellow
-#define PIPE_COLOR  0x07E0 // Green
-#define SKY_COLOR   0x549F // A nice light blue
-#define TEXT_COLOR  0xFFFF // White
-#define GROUND_COLOR 0x62A6 // Brownish-green
-
 // --- GAME OBJECTS & VARIABLES ---
 struct Pipe {
   int x;      // Horizontal position of the pipe's left edge
@@ -77,6 +74,8 @@ void setupGame();
 void updateGameLogic();
 void drawGame();
 void checkCollisions();
+void drawStartScreen();
+void drawGameOverScreen();
 
 // =========================================================================
 //  SETUP
@@ -107,16 +106,7 @@ void loop() {
   // --- STATE MACHINE ---
   switch (gameState) {
     case START_SCREEN:
-      // Draw the start screen
-      canvas.fillScreen(SKY_COLOR);
-      canvas.setTextSize(3);
-      canvas.setTextColor(TEXT_COLOR);
-      canvas.setCursor(50, 40);
-      canvas.println("Flappy Bird");
-      canvas.setTextSize(2);
-      canvas.setCursor(70, 90);
-      canvas.println("Press to Start");
-      
+      drawStartScreen();
       // Wait for a button press to start the game
       if (!digitalRead(LEFT_SWITCH_PIN) || !digitalRead(RIGHT_SWITCH_PIN)) {
         gameState = PLAYING;
@@ -131,21 +121,7 @@ void loop() {
       break;
 
     case GAME_OVER:
-      // Draw the game over screen
-      canvas.fillScreen(SKY_COLOR);
-      canvas.setTextSize(3);
-      canvas.setTextColor(RED);
-      canvas.setCursor(70, 30);
-      canvas.println("GAME OVER");
-      canvas.setTextSize(2);
-      canvas.setTextColor(TEXT_COLOR);
-      canvas.setCursor(90, 80);
-      canvas.print("Score: ");
-      canvas.println(score);
-      canvas.setCursor(90, 110);
-      canvas.print("High: ");
-      canvas.println(highScore);
-
+      drawGameOverScreen();
       // Wait for a button press to restart
       if (!digitalRead(LEFT_SWITCH_PIN) || !digitalRead(RIGHT_SWITCH_PIN)) {
           setupGame(); // Reset game variables
@@ -156,8 +132,6 @@ void loop() {
       break;
   }
 
-  // --- Push the canvas buffer to the TFT display ---
-  tft.drawRGBBitmap(0, 0, canvas.getBuffer(), SCREEN_WIDTH, SCREEN_HEIGHT);
   delay(10); // Small delay to control frame rate
 }
 
@@ -246,31 +220,59 @@ void checkCollisions() {
 }
 
 // =========================================================================
-//  DRAWING FUNCTIONS (all draw to the canvas)
+//  DRAWING FUNCTIONS (all draw directly to the tft)
 // =========================================================================
+void drawStartScreen() {
+    tft.fillScreen(SKY_COLOR);
+    tft.setTextSize(3);
+    tft.setTextColor(TEXT_COLOR);
+    tft.setCursor(50, 40);
+    tft.println("Flappy Bird");
+    tft.setTextSize(2);
+    tft.setCursor(70, 90);
+    tft.println("Press to Start");
+}
+
+void drawGameOverScreen() {
+    tft.fillScreen(SKY_COLOR);
+    tft.setTextSize(3);
+    tft.setTextColor(RED);
+    tft.setCursor(70, 30);
+    tft.println("GAME OVER");
+    tft.setTextSize(2);
+    tft.setTextColor(TEXT_COLOR);
+    tft.setCursor(90, 80);
+    tft.print("Score: ");
+    tft.println(score);
+    tft.setCursor(90, 110);
+    tft.print("High: ");
+    tft.println(highScore);
+}
+
 void drawGame() {
-  // --- Clear canvas with sky color ---
-  canvas.fillScreen(SKY_COLOR);
+  // --- Clear screen with sky color ---
+  // This is the primary cause of flicker without a canvas
+  tft.fillScreen(SKY_COLOR);
 
   // --- Draw Pipes ---
   for (int i = 0; i < NUM_PIPES; i++) {
     // Top pipe rectangle
-    canvas.fillRect(pipes[i].x, 0, PIPE_WIDTH, pipes[i].gap_y - PIPE_GAP_HEIGHT / 2, PIPE_COLOR);
+    tft.fillRect(pipes[i].x, 0, PIPE_WIDTH, pipes[i].gap_y - PIPE_GAP_HEIGHT / 2, PIPE_COLOR);
     // Bottom pipe rectangle
     int bottom_pipe_y = pipes[i].gap_y + PIPE_GAP_HEIGHT / 2;
-    canvas.fillRect(pipes[i].x, bottom_pipe_y, PIPE_WIDTH, SCREEN_HEIGHT - bottom_pipe_y, PIPE_COLOR);
+    tft.fillRect(pipes[i].x, bottom_pipe_y, PIPE_WIDTH, SCREEN_HEIGHT - bottom_pipe_y, PIPE_COLOR);
   }
 
   // --- Draw Ground ---
-  canvas.fillRect(0, SCREEN_HEIGHT - GROUND_HEIGHT, SCREEN_WIDTH, GROUND_HEIGHT, GROUND_COLOR);
+  tft.fillRect(0, SCREEN_HEIGHT - GROUND_HEIGHT, SCREEN_WIDTH, GROUND_HEIGHT, GROUND_COLOR);
   
   // --- Draw Bird ---
-  canvas.fillRect(BIRD_X_POS, (int)bird_y, BIRD_WIDTH, BIRD_HEIGHT, BIRD_COLOR);
+  tft.fillRect(BIRD_X_POS, (int)bird_y, BIRD_WIDTH, BIRD_HEIGHT, BIRD_COLOR);
   
   // --- Draw Score ---
-  canvas.setTextSize(2);
-  canvas.setTextColor(TEXT_COLOR);
-  canvas.setCursor(10, 10);
-  canvas.print("Score: ");
-  canvas.print(score);
+  tft.setTextSize(2);
+  tft.setTextColor(TEXT_COLOR);
+  tft.setCursor(10, 10);
+  tft.print("Score: ");
+  tft.print(score);
 }
