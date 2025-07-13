@@ -16,11 +16,10 @@
 #define LEFT_SWITCH_PIN 36
 #define RIGHT_SWITCH_PIN 39
 
-// --- DISPLAY & CANVAS SETUP ---
+// --- DISPLAY SETUP ---
 #define SCREEN_WIDTH 320
 #define SCREEN_HEIGHT 170
 Adafruit_ST7789 tft = Adafruit_ST7789(TFT_CS, TFT_DC, TFT_RST);
-GFXcanvas16 canvas(SCREEN_WIDTH, SCREEN_HEIGHT);
 
 // --- GAME STATES ---
 enum GameState {
@@ -34,7 +33,7 @@ GameState gameState = START_SCREEN;
 #define PADDLE_WIDTH 80
 #define PADDLE_HEIGHT 10
 #define PADDLE_Y_POS (SCREEN_HEIGHT - PADDLE_HEIGHT - 2) // Player paddle Y position
-#define AI_PADDLE_Y_POS 2                              // AI paddle Y position
+#define AI_PADDLE_Y_POS 2                               // AI paddle Y position
 #define PADDLE_SPEED 6
 
 #define BALL_SIZE 10
@@ -45,11 +44,7 @@ GameState gameState = START_SCREEN;
 #define BALL_COLOR   0xFFE0 // Yellow
 #define BG_COLOR     0x0000 // Black
 #define TEXT_COLOR   0xFFFF // White
-#define BLACK   0x0000
-#define WHITE   0xFFFF
-#define BLUE    0x001F
-#define GREEN   0x07E0
-#define RED     0xF800
+#define RED          0xF800
 
 // --- GAME OBJECTS & VARIABLES ---
 float player_x;
@@ -64,6 +59,8 @@ void serveBall(int direction);
 void resetGame();
 void updateGameLogic();
 void drawGame();
+void drawStartScreen();
+void drawGameOverScreen();
 
 // =========================================================================
 //  SETUP
@@ -85,6 +82,7 @@ void setup() {
 
   // Initialize game variables for the first time
   resetGame();
+  gameState = START_SCREEN; // Start at the title screen
 }
 
 // =========================================================================
@@ -94,15 +92,7 @@ void loop() {
   // --- STATE MACHINE ---
   switch (gameState) {
     case START_SCREEN:
-      canvas.fillScreen(BG_COLOR);
-      canvas.setTextSize(3);
-      canvas.setTextColor(TEXT_COLOR);
-      canvas.setCursor(110, 40);
-      canvas.println("PONG");
-      canvas.setTextSize(2);
-      canvas.setCursor(70, 90);
-      canvas.println("Press to Start");
-      
+      drawStartScreen();
       if (!digitalRead(LEFT_SWITCH_PIN) || !digitalRead(RIGHT_SWITCH_PIN)) {
         resetGame(); // Ensure scores are 0
         gameState = PLAYING;
@@ -120,24 +110,7 @@ void loop() {
       break;
 
     case GAME_OVER:
-      canvas.fillScreen(BG_COLOR);
-      canvas.setTextSize(3);
-      canvas.setTextColor(RED);
-      canvas.setCursor(70, 30);
-      canvas.println("GAME OVER");
-      
-      canvas.setTextSize(2);
-      canvas.setTextColor(TEXT_COLOR);
-      canvas.setCursor(90, 80);
-      if (playerScore > aiScore) {
-          canvas.println("YOU WIN!");
-      } else {
-          canvas.println("AI WINS!");
-      }
-      
-      canvas.setCursor(70, 120);
-      canvas.println("Press to Restart");
-
+      drawGameOverScreen();
       if (!digitalRead(LEFT_SWITCH_PIN) || !digitalRead(RIGHT_SWITCH_PIN)) {
           resetGame();
           gameState = START_SCREEN;
@@ -146,8 +119,6 @@ void loop() {
       break;
   }
 
-  // --- Push the canvas buffer to the TFT display ---
-  tft.drawRGBBitmap(0, 0, canvas.getBuffer(), SCREEN_WIDTH, SCREEN_HEIGHT);
   delay(10); // Control frame rate
 }
 
@@ -231,26 +202,58 @@ void updateGameLogic() {
 // =========================================================================
 //  DRAWING FUNCTIONS
 // =========================================================================
+void drawStartScreen() {
+    tft.fillScreen(BG_COLOR);
+    tft.setTextSize(3);
+    tft.setTextColor(TEXT_COLOR);
+    tft.setCursor(110, 40);
+    tft.println("PONG");
+    tft.setTextSize(2);
+    tft.setCursor(70, 90);
+    tft.println("Press to Start");
+}
+
+void drawGameOverScreen() {
+    tft.fillScreen(BG_COLOR);
+    tft.setTextSize(3);
+    tft.setTextColor(RED);
+    tft.setCursor(70, 30);
+    tft.println("GAME OVER");
+    
+    tft.setTextSize(2);
+    tft.setTextColor(TEXT_COLOR);
+    tft.setCursor(90, 80);
+    if (playerScore > aiScore) {
+        tft.println("YOU WIN!");
+    } else {
+        tft.println("AI WINS!");
+    }
+    
+    tft.setCursor(70, 120);
+    tft.println("Press to Restart");
+}
+
 void drawGame() {
-  canvas.fillScreen(BG_COLOR);
+  // This is the main source of flicker. The whole screen is cleared.
+  tft.fillScreen(BG_COLOR);
 
   // Draw dashed center line
   for (int i = 0; i < SCREEN_WIDTH; i += 15) {
-    canvas.drawFastVLine(i, SCREEN_HEIGHT / 2, 5, TEXT_COLOR);
+    tft.drawFastVLine(i, SCREEN_HEIGHT / 2, 5, TEXT_COLOR);
   }
   
   // Draw paddles
-  canvas.fillRect((int)player_x, PADDLE_Y_POS, PADDLE_WIDTH, PADDLE_HEIGHT, PADDLE_COLOR);
-  canvas.fillRect((int)ai_x, AI_PADDLE_Y_POS, PADDLE_WIDTH, PADDLE_HEIGHT, PADDLE_COLOR);
+  tft.fillRect((int)player_x, PADDLE_Y_POS, PADDLE_WIDTH, PADDLE_HEIGHT, PADDLE_COLOR);
+  tft.fillRect((int)ai_x, AI_PADDLE_Y_POS, PADDLE_WIDTH, PADDLE_HEIGHT, PADDLE_COLOR);
 
   // Draw ball
-  canvas.fillCircle((int)ball_x, (int)ball_y, BALL_SIZE / 2, BALL_COLOR);
+  tft.fillCircle((int)ball_x, (int)ball_y, BALL_SIZE / 2, BALL_COLOR);
   
   // Draw scores
-  canvas.setTextSize(2);
-  canvas.setTextColor(TEXT_COLOR);
-  canvas.setCursor(10, SCREEN_HEIGHT / 2 - 25);
-  canvas.print(aiScore);
-  canvas.setCursor(10, SCREEN_HEIGHT / 2 + 10);
-  canvas.print(playerScore);
+  tft.setTextSize(2);
+  tft.setTextColor(TEXT_COLOR);
+  tft.setCursor(10, SCREEN_HEIGHT / 2 - 25);
+  tft.print(aiScore);
+  tft.setCursor(10, SCREEN_HEIGHT / 2 + 10);
+  tft.print(playerScore);
 }
